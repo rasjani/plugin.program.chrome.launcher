@@ -37,6 +37,15 @@ if not os.path.isdir(siteFolder):
 youtubeUrl = "http://www.youtube.com/leanback"
 vimeoUrl = "http://www.vimeo.com/couchmode"
 
+trace_on = False
+try:
+    pass
+    # import pydevd
+    # #pydevd.set_pm_excepthook()
+    # pydevd.settrace('192.168.0.16', port=51381, stdoutToServer=True, stderrToServer=True)
+    # trace_on = True
+except BaseException as ex:
+    pass
 
 def index():
     files = os.listdir(siteFolder)
@@ -157,8 +166,18 @@ def showSite(url, stopPlayback, kiosk, userAgent):
             xbmc.executebuiltin('XBMC.Notification(Info:,'+str(translation(30005))+'!,5000)')
             addon.openSettings()
             return
-        timeout = time.time() + 5
-        while time.time() < timeout:
+        
+        # Ensure chrome is active window
+        def currentActiveWindow():
+            # xprop -id $(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2) _NET_WM_NAME    
+            current_window_id = subprocess.check_output(['xprop', '-root', '32x', '\'\t$0\'', '_NET_ACTIVE_WINDOW'])
+            current_window_id = current_window_id.strip("'").split()[1]
+            current_window_name = subprocess.check_output(['xprop', '-id', current_window_id, "_NET_WM_NAME"])
+            current_window_name = current_window_name.strip().split(" = ")[1].strip('"')
+            return current_window_name
+            
+        timeout = time.time() + 10
+        while time.time() < timeout and "chrome" not in currentActiveWindow().lower():
             windows = subprocess.check_output(['wmctrl', '-l'])
             if "Google Chrome" in windows:
                 subprocess.Popen(['wmctrl', '-a', "Google Chrome"])
@@ -256,9 +275,10 @@ url = urllib.unquote_plus(params.get('url', ''))
 stopPlayback = urllib.unquote_plus(params.get('stopPlayback', 'no'))
 kiosk = urllib.unquote_plus(params.get('kiosk', 'yes'))
 userAgent = urllib.unquote_plus(params.get('userAgent', ''))
-userDataDir = urllib.unquote_plus(params.get('userDataDir', ''))
-if userDataDir:
-    profileFolder = userDataDir
+profileFolderParam = urllib.unquote_plus(params.get('profileFolder', ''))
+if profileFolderParam:
+    useOwnProfile = True
+    profileFolder = profileFolderParam
 
 
 if mode == 'addSite':
@@ -271,3 +291,6 @@ elif mode == 'editSite':
     editSite(url)
 else:
     index()
+
+if trace_on:
+    pydevd.stoptrace()
