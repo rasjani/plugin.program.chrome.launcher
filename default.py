@@ -256,6 +256,9 @@ url = urllib.unquote_plus(params.get('url', ''))
 stopPlayback = urllib.unquote_plus(params.get('stopPlayback', 'no'))
 kiosk = urllib.unquote_plus(params.get('kiosk', 'yes'))
 userAgent = urllib.unquote_plus(params.get('userAgent', ''))
+userDataDir = urllib.unquote_plus(params.get('userDataDir', ''))
+if userDataDir:
+    profileFolder = userDataDir
 
 
 if mode == 'addSite':
