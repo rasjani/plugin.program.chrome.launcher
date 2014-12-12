@@ -4,6 +4,7 @@ import urllib
 import sys
 import re
 import os
+import time
 import subprocess
 import xbmcplugin
 import xbmcgui
@@ -155,7 +156,14 @@ def showSite(url, stopPlayback, kiosk, userAgent):
         else:
             xbmc.executebuiltin('XBMC.Notification(Info:,'+str(translation(30005))+'!,5000)')
             addon.openSettings()
-
+            return
+        timeout = time.time() + 5
+        while time.time() < timeout:
+            windows = subprocess.check_output(['wmctrl', '-l'])
+            if "Google Chrome" in windows:
+                subprocess.Popen(['wmctrl', '-a', "Google Chrome"])
+                break
+            xbmc.sleep(500)
 
 def removeSite(title):
     os.remove(os.path.join(siteFolder, getFileName(title)+".link"))
