@@ -33,3 +33,4 @@ if [ $IRXEVENT -eq 0 ]; then
 	killall irxevent >/dev/null 2>&1
 fi
 
+exit 0

@@ -22,6 +22,7 @@ osLinux = xbmc.getCondVisibility('system.platform.linux')
 useOwnProfile = addon.getSetting("useOwnProfile") == "true"
 useCustomPath = addon.getSetting("useCustomPath") == "true"
 customPath = xbmc.translatePath(addon.getSetting("customPath"))
+debug = addon.getSetting("debug") == "true"
 
 userDataFolder = xbmc.translatePath("special://profile/addon_data/"+addonID)
 profileFolder = os.path.join(userDataFolder, 'profile')
@@ -122,7 +123,11 @@ def getFullPath(path, url, useKiosk, userAgent):
         kiosk = '--kiosk '
     if userAgent:
         userAgent = '--user-agent="'+userAgent+'" '
-    return '"'+path+'" '+profile+userAgent+'--start-maximized --disable-translate --disable-new-tab-first-run --no-default-browser-check --no-first-run '+kiosk+'"'+url+'"'
+    
+    fullPath = '"'+path+'" '+profile+userAgent+'--start-maximized --disable-translate --disable-new-tab-first-run --no-default-browser-check --no-first-run '+kiosk+'"'+url+'"'
+    if debug:
+        print "Full Path: " + fullPath
+    return fullPath;
 
 
 def showSite(url, stopPlayback, kiosk, userAgent):
