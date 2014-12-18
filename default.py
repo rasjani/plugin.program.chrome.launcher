@@ -22,6 +22,7 @@ osLinux = xbmc.getCondVisibility('system.platform.linux')
 useOwnProfile = addon.getSetting("useOwnProfile") == "true"
 useCustomPath = addon.getSetting("useCustomPath") == "true"
 customPath = xbmc.translatePath(addon.getSetting("customPath"))
+debug = addon.getSetting("debug") == "true"
 
 userDataFolder = xbmc.translatePath("special://profile/addon_data/"+addonID)
 profileFolder = os.path.join(userDataFolder, 'profile')
@@ -122,7 +123,11 @@ def getFullPath(path, url, useKiosk, userAgent):
         kiosk = '--kiosk '
     if userAgent:
         userAgent = '--user-agent="'+userAgent+'" '
-    return '"'+path+'" '+profile+userAgent+'--start-maximized --disable-translate --disable-new-tab-first-run --no-default-browser-check --no-first-run '+kiosk+'"'+url+'"'
+    
+    fullPath = '"'+path+'" '+profile+userAgent+'--start-maximized --disable-translate --disable-new-tab-first-run --no-default-browser-check --no-first-run '+kiosk+'"'+url+'"'
+    if debug:
+        print "Full Path: " + fullPath
+    return fullPath;
 
 
 def showSite(url, stopPlayback, kiosk, userAgent):
@@ -173,17 +178,23 @@ def showSite(url, stopPlayback, kiosk, userAgent):
             current_window_id = subprocess.check_output(['xprop', '-root', '32x', '\'\t$0\'', '_NET_ACTIVE_WINDOW'])
             current_window_id = current_window_id.strip("'").split()[1]
             current_window_name = subprocess.check_output(['xprop', '-id', current_window_id, "_NET_WM_NAME"])
-            current_window_name = current_window_name.strip().split(" = ")[1].strip('"')
-            return current_window_name
+            if "not found" not in current_window_name: 
+                current_window_name = current_window_name.strip().split(" = ")[1].strip('"')
+                return current_window_name;
+            else:
+                return ""
+        
+        try:
+            timeout = time.time() + 10
+            while time.time() < timeout and "chrome" not in currentActiveWindow().lower():
+                windows = subprocess.check_output(['wmctrl', '-l'])
+                if "Google Chrome" in windows:
+                    subprocess.Popen(['wmctrl', '-a', "Google Chrome"])
+                    break
+                xbmc.sleep(500)
+        except OSError:
+            pass
             
-        timeout = time.time() + 10
-        while time.time() < timeout and "chrome" not in currentActiveWindow().lower():
-            windows = subprocess.check_output(['wmctrl', '-l'])
-            if "Google Chrome" in windows:
-                subprocess.Popen(['wmctrl', '-a', "Google Chrome"])
-                break
-            xbmc.sleep(500)
-
 def removeSite(title):
     os.remove(os.path.join(siteFolder, getFileName(title)+".link"))
     xbmc.executebuiltin("Container.Refresh")
