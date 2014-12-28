@@ -131,70 +131,102 @@ def getFullPath(path, url, useKiosk, userAgent):
 
 
 def showSite(url, stopPlayback, kiosk, userAgent):
+    chrome_path = ""
     if stopPlayback == "yes":
         xbmc.Player().stop()
     if osWin:
         path = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
         path64 = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
         if useCustomPath and os.path.exists(customPath):
-            fullUrl = getFullPath(customPath, url, kiosk, userAgent)
-            subprocess.Popen(fullUrl, shell=False)
+            chrome_path = customPath
         elif os.path.exists(path):
-            fullUrl = getFullPath(path, url, kiosk, userAgent)
-            subprocess.Popen(fullUrl, shell=False)
+            chrome_path = path
         elif os.path.exists(path64):
-            fullUrl = getFullPath(path64, url, kiosk, userAgent)
-            subprocess.Popen(fullUrl, shell=False)
-        else:
-            xbmc.executebuiltin('XBMC.Notification(Info:,'+str(translation(30005))+'!,5000)')
-            addon.openSettings()
+            chrome_path = path64
     elif osOsx:
         path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
         if useCustomPath and os.path.exists(customPath):
-            fullUrl = getFullPath(customPath, url, kiosk, userAgent)
-            subprocess.Popen(fullUrl, shell=True)
+            chrome_path = customPath
         elif os.path.exists(path):
-            fullUrl = getFullPath(path, url, kiosk, userAgent)
-            subprocess.Popen(fullUrl, shell=True)
-        else:
-            xbmc.executebuiltin('XBMC.Notification(Info:,'+str(translation(30005))+'!,5000)')
-            addon.openSettings()
+            chrome_path = path
     elif osLinux:
         path = "/usr/bin/google-chrome"
         if useCustomPath and os.path.exists(customPath):
-            fullUrl = getFullPath(customPath, url, kiosk, userAgent)
-            subprocess.Popen(fullUrl, shell=True)
+            chrome_path = customPath
         elif os.path.exists(path):
-            fullUrl = getFullPath(path, url, kiosk, userAgent)
-            subprocess.Popen(fullUrl, shell=True)
-        else:
-            xbmc.executebuiltin('XBMC.Notification(Info:,'+str(translation(30005))+'!,5000)')
-            addon.openSettings()
-            return
-        
-        # Ensure chrome is active window
-        def currentActiveWindow():
-            # xprop -id $(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2) _NET_WM_NAME    
-            current_window_id = subprocess.check_output(['xprop', '-root', '32x', '\'\t$0\'', '_NET_ACTIVE_WINDOW'])
-            current_window_id = current_window_id.strip("'").split()[1]
-            current_window_name = subprocess.check_output(['xprop', '-id', current_window_id, "_NET_WM_NAME"])
-            if "not found" not in current_window_name: 
-                current_window_name = current_window_name.strip().split(" = ")[1].strip('"')
-                return current_window_name;
-            else:
-                return ""
-        
+            chrome_path = path
+
+    if chrome_path:
+        fullUrl = getFullPath(chrome_path, url, kiosk, userAgent)
+        proc = subprocess.Popen(fullUrl, shell=False)
+        bringChromeToFront(proc.pid)
+    else:
+        xbmc.executebuiltin('XBMC.Notification(Info:,'+str(translation(30005))+'!,5000)')
+        addon.openSettings()
+
+
+def bringChromeToFront(pid):
+    if osLinux:
+            # Ensure chrome is active window
+        def currentActiveWindowLinux():
+            name = ""
+            try:
+                # xprop -id $(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2) _NET_WM_NAME
+                current_window_id = subprocess.check_output(['xprop', '-root', '32x', '\'\t$0\'', '_NET_ACTIVE_WINDOW'])
+                current_window_id = current_window_id.strip("'").split()[1]
+                current_window_name = subprocess.check_output(['xprop', '-id', current_window_id, "_NET_WM_NAME"])
+                if "not found" not in current_window_name and "failed request" not in current_window_name:
+                    current_window_name = current_window_name.strip().split(" = ")[1].strip('"')
+                    name = current_window_name
+            except OSError:
+                pass
+            return name
+
+        def findWid():
+            wid = None
+            match = re.compile("(0x[0-9A-F]+?)").findall(subprocess.check_output(['xprop','-root','_NET_CLIENT_LIST']))
+            if match:
+                for id in match:
+                    wpid = subprocess.check_output(['xprop','-id',id,'_NET_WM_PID'])
+                    wname = subprocess.check_output(['xprop','-id',id,'WM_NAME'])
+                    if str(pid) in wpid:
+                        wid = id
+            return wid
+
         try:
             timeout = time.time() + 10
-            while time.time() < timeout and "chrome" not in currentActiveWindow().lower():
-                windows = subprocess.check_output(['wmctrl', '-l'])
-                if "Google Chrome" in windows:
-                    subprocess.Popen(['wmctrl', '-a', "Google Chrome"])
+            while time.time() < timeout and "chrome" not in currentActiveWindowLinux().lower():
+                #windows = subprocess.check_output(['wmctrl', '-l'])
+                #if "Google Chrome" in windows:
+                wid = findWid()
+                if wid:
+                    try:
+                        subprocess.Popen(['wmctrl', '-a', '-i', wid])
+                    except OSError:
+                        subprocess.Popen(['xdotool', 'windowraise', wid])
+                # else:
+                #     subprocess.Popen(['wmctrl', '-a', "Google Chrome"])
                     break
                 xbmc.sleep(500)
-        except OSError:
+        except (OSError, subprocess.CalledProcessError):
             pass
-            
+
+    elif osOsx:
+        timeout = time.time() + 10
+        while time.time() < timeout:
+            xbmc.sleep(500)
+            applescript_switch_chrome = """tell application "System Events"
+                    set frontmost of the first process whose unix id is %d to true
+                end tell""" % pid
+            try:
+                subprocess.Popen(['osascript', '-e', applescript_switch_chrome])
+                break
+            except subprocess.CalledProcessError:
+                pass
+    elif osWin:
+        # TODO: find out if this is needed, and if so how to implement
+        pass
+
 def removeSite(title):
     os.remove(os.path.join(siteFolder, getFileName(title)+".link"))
     xbmc.executebuiltin("Container.Refresh")
