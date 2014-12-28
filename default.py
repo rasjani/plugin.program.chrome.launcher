@@ -42,7 +42,6 @@ trace_on = False
 try:
     pass
     # import pydevd
-    # #pydevd.set_pm_excepthook()
     # pydevd.settrace('192.168.0.16', port=51381, stdoutToServer=True, stderrToServer=True)
     # trace_on = True
 except BaseException as ex:
@@ -117,17 +116,55 @@ def getFileName(title):
 def getFullPath(path, url, useKiosk, userAgent):
     profile = ""
     if useOwnProfile:
-        profile = '--user-data-dir="'+profileFolder+'" '
+        profile = '--user-data-dir='+profileFolder
+        if useKiosk=="yes" and osLinux:
+            import fileinput
+            # On Linux, chrome kiosk leavs black bars on side/bottom of screen due to an incorrect working size.
+            # We can fix the preferences directly
+            # cat $prefs |perl -pe "s/\"work_area_bottom.*/\"work_area_bottom\": $(xrandr | grep \* | cut -d' ' -f4 | cut -d'x' -f2),/" > $prefs
+            # cat $prefs |perl -pe "s/\"work_area_right.*/\"work_area_right\": $(xrandr | grep \* | cut -d' ' -f4 | cut -d'x' -f1),/" > $prefs
+            try:
+                width, height = 0,0
+                xrandr = subprocess.check_output(['xrandr']).split('\n')
+                for line in xrandr:
+                    match = re.compile('([0-9]+?)x([0-9]+?).+?\*.+?').findall(line)
+                    if match:
+                        width = int(match[0])
+                        height = int(match[1])
+
+                prefs = os.path.join(profileFolder, 'Default', 'Preferences')
+                # space for non existing controls. Not sure why it needs it, but it does on my setup
+                top_margin = 30
+                for line in fileinput.input(prefs, inplace=True):
+                    line = re.sub('"top": [0-9]+?,', '"top": %d,' % top_margin, line)
+                    line = re.sub('"bottom": [0-9]+?,', '"bottom": %d,' % height-top_margin, line)
+                    line = re.sub('"work_area_bottom": [0-9]+?,', '"work_area_bottom": %d,' % height, line)
+                    line = re.sub('"work_area_right": [0-9]+?,', '"work_area_right": %d,' % width, line)
+                    print line
+            except:
+                xbmc.log("Can't update chrome resolution")
+
+    # Flashing a white screen on switching to chrome looks bad, so I'll use a temp html file with black background
+    # to redirect to our desired location.
+    black_background = os.path.join(userDataFolder, "black.html")
+    with open(black_background, "w") as launch:
+        launch.write('<html><body style="background:black"><script>window.location.href = "%s";</script></body></html>' % url)
+
     kiosk = ""
     if useKiosk=="yes":
-        kiosk = '--kiosk '
+        kiosk = '--kiosk'
     if userAgent:
-        userAgent = '--user-agent="'+userAgent+'" '
+        userAgent = '--user-agent="'+userAgent+'"'
     
-    fullPath = '"'+path+'" '+profile+userAgent+'--start-maximized --disable-translate --disable-new-tab-first-run --no-default-browser-check --no-first-run '+kiosk+'"'+url+'"'
+    #fullPath = '"'+path+'" '+profile+userAgent+'--start-maximized --disable-translate --disable-new-tab-first-run --no-default-browser-check --no-first-run '+kiosk+'"'+black_background+'"'
+    fullPath = [path, profile, userAgent, '--start-maximized','--disable-translate','--disable-new-tab-first-run','--no-default-browser-check','--no-first-run', kiosk, black_background]
     if debug:
-        print "Full Path: " + fullPath
-    return fullPath;
+        print "Full Path:"
+        strpath = ""
+        for arg in fullPath:
+            strpath += " " + arg
+        print strpath
+    return fullPath
 
 
 def showSite(url, stopPlayback, kiosk, userAgent):
