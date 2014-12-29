@@ -41,9 +41,9 @@ vimeoUrl = "http://www.vimeo.com/couchmode"
 trace_on = False
 try:
     pass
-    # import pydevd
-    # pydevd.settrace('192.168.0.16', port=51381, stdoutToServer=True, stderrToServer=True)
-    # trace_on = True
+    import pydevd
+    pydevd.settrace('192.168.0.16', port=51381, stdoutToServer=True, stderrToServer=True)
+    trace_on = True
 except BaseException as ex:
     pass
 
@@ -211,7 +211,7 @@ def bringChromeToFront(pid):
                 # xprop -id $(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2) _NET_WM_NAME
                 current_window_id = subprocess.check_output(['xprop', '-root', '32x', '\'\t$0\'', '_NET_ACTIVE_WINDOW'])
                 current_window_id = current_window_id.strip("'").split()[1]
-                current_window_name = subprocess.check_output(['xprop', '-id', current_window_id, "_NET_WM_NAME"])
+                current_window_name = subprocess.check_output(['xprop', '-id', current_window_id, "WM_NAME"])
                 if "not found" not in current_window_name and "failed request" not in current_window_name:
                     current_window_name = current_window_name.strip().split(" = ")[1].strip('"')
                     name = current_window_name
@@ -221,28 +221,31 @@ def bringChromeToFront(pid):
 
         def findWid():
             wid = None
-            match = re.compile("(0x[0-9A-F]+?)").findall(subprocess.check_output(['xprop','-root','_NET_CLIENT_LIST']))
+            match = re.compile("(0x[0-9A-Fa-f]+)").findall(subprocess.check_output(['xprop','-root','_NET_CLIENT_LIST']))
             if match:
                 for id in match:
-                    wpid = subprocess.check_output(['xprop','-id',id,'_NET_WM_PID'])
-                    wname = subprocess.check_output(['xprop','-id',id,'WM_NAME'])
-                    if str(pid) in wpid:
-                        wid = id
+                    try:
+                        wpid = subprocess.check_output(['xprop','-id',id,'_NET_WM_PID'])
+                        wname = subprocess.check_output(['xprop','-id',id,'WM_NAME'])
+                        if str(pid) in wpid:
+                            wid = id
+                    except (OSError, subprocess.CalledProcessError): pass
             return wid
 
         try:
             timeout = time.time() + 10
-            while time.time() < timeout and "chrome" not in currentActiveWindowLinux().lower():
+            while time.time() < timeout:# and "chrome" not in currentActiveWindowLinux().lower():
                 #windows = subprocess.check_output(['wmctrl', '-l'])
                 #if "Google Chrome" in windows:
                 wid = findWid()
                 if wid:
                     try:
                         subprocess.Popen(['wmctrl', '-a', '-i', wid])
-                    except OSError:
-                        subprocess.Popen(['xdotool', 'windowraise', wid])
-                # else:
-                #     subprocess.Popen(['wmctrl', '-a', "Google Chrome"])
+                    except (OSError, subprocess.CalledProcessError):
+                        try:
+                            subprocess.Popen(['xdotool', 'windowraise', wid])
+                        except (OSError, subprocess.CalledProcessError):
+                            xbmc.log("Please install wmctrl or xdotool")
                     break
                 xbmc.sleep(500)
         except (OSError, subprocess.CalledProcessError):
