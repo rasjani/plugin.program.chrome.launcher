@@ -41,9 +41,9 @@ vimeoUrl = "http://www.vimeo.com/couchmode"
 trace_on = False
 try:
     pass
-    import pydevd
-    pydevd.settrace('192.168.0.16', port=51381, stdoutToServer=True, stderrToServer=True)
-    trace_on = True
+    # import pydevd
+    # pydevd.settrace('192.168.0.16', port=51381, stdoutToServer=True, stderrToServer=True)
+    # trace_on = True
 except BaseException as ex:
     pass
 
@@ -240,10 +240,10 @@ def bringChromeToFront(pid):
                 wid = findWid()
                 if wid:
                     try:
-                        subprocess.Popen(['wmctrl', '-a', '-i', wid])
+                        subprocess.Popen(['wmctrl', '-i', '-a', wid])
                     except (OSError, subprocess.CalledProcessError):
                         try:
-                            subprocess.Popen(['xdotool', 'windowraise', wid])
+                            subprocess.Popen(['xdotool', 'windowactivate', wid])
                         except (OSError, subprocess.CalledProcessError):
                             xbmc.log("Please install wmctrl or xdotool")
                     break
