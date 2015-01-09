@@ -118,7 +118,6 @@ def getFullPath(path, url, useKiosk, userAgent):
     if useOwnProfile:
         profile = '--user-data-dir='+profileFolder
         if useKiosk=="yes" and osLinux:
-            import fileinput
             # On Linux, chrome kiosk leavs black bars on side/bottom of screen due to an incorrect working size.
             # We can fix the preferences directly
             # cat $prefs |perl -pe "s/\"work_area_bottom.*/\"work_area_bottom\": $(xrandr | grep \* | cut -d' ' -f4 | cut -d'x' -f2),/" > $prefs
@@ -127,20 +126,31 @@ def getFullPath(path, url, useKiosk, userAgent):
                 width, height = 0,0
                 xrandr = subprocess.check_output(['xrandr']).split('\n')
                 for line in xrandr:
-                    match = re.compile('([0-9]+?)x([0-9]+?).+?\*.+?').findall(line)
+                    match = re.compile('([0-9]+)x([0-9]+).+?\*.+?').findall(line)
                     if match:
-                        width = int(match[0])
-                        height = int(match[1])
-
+                        width = int(match[0][0])
+                        height = int(match[0][1])
+                        break
                 prefs = os.path.join(profileFolder, 'Default', 'Preferences')
                 # space for non existing controls. Not sure why it needs it, but it does on my setup
                 top_margin = 30
-                for line in fileinput.input(prefs, inplace=True):
-                    line = re.sub('"top": [0-9]+?,', '"top": %d,' % top_margin, line)
-                    line = re.sub('"bottom": [0-9]+?,', '"bottom": %d,' % height-top_margin, line)
-                    line = re.sub('"work_area_bottom": [0-9]+?,', '"work_area_bottom": %d,' % height, line)
-                    line = re.sub('"work_area_right": [0-9]+?,', '"work_area_right": %d,' % width, line)
-                    print line
+
+                with open(prefs, "rb+") as prefsfile:
+                    import json
+                    prefsdata = json.load(prefsfile)
+                    prefs_browser = prefsdata.get('browser', {})
+                    prefs_window_placement = prefs_browser.get('window_placement', {})
+                    prefs_window_placement['always_on_top'] = True
+                    prefs_window_placement['top'] = top_margin
+                    prefs_window_placement['bottom'] = height-top_margin
+                    prefs_window_placement['work_area_bottom'] = height
+                    prefs_window_placement['work_area_right'] = width
+                    prefsdata['browser'] = prefs_browser
+                    prefsdata['browser']['window_placement'] = prefs_window_placement
+                    prefsfile.seek(0)
+                    prefsfile.truncate(0)
+                    json.dump(prefsdata, prefsfile, indent=4, separators=(',', ': '))
+
             except:
                 xbmc.log("Can't update chrome resolution")
 
