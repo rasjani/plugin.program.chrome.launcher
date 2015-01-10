@@ -179,9 +179,11 @@ def getFullPath(path, url, useKiosk, userAgent):
 
 def showSite(url, stopPlayback, kiosk, userAgent):
     chrome_path = ""
+    creationflags = 0
     if stopPlayback == "yes":
         xbmc.Player().stop()
     if osWin:
+        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
         path = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
         path64 = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
         if useCustomPath and os.path.exists(customPath):
@@ -205,7 +207,7 @@ def showSite(url, stopPlayback, kiosk, userAgent):
 
     if chrome_path:
         fullUrl = getFullPath(chrome_path, url, kiosk, userAgent)
-        proc = subprocess.Popen(fullUrl, shell=False)
+        proc = subprocess.Popen(fullUrl, shell=False, creationflags=creationflags, close_fds = True)
         bringChromeToFront(proc.pid)
     else:
         xbmc.executebuiltin('XBMC.Notification(Info:,'+str(translation(30005))+'!,5000)')
