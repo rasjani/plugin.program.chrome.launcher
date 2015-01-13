@@ -40,12 +40,10 @@ vimeoUrl = "http://www.vimeo.com/couchmode"
 
 trace_on = False
 try:
-    pass
-    # import pydevd
-    # pydevd.settrace('192.168.0.16', port=51381, stdoutToServer=True, stderrToServer=True)
-    # trace_on = True
+    import user_debug
+    trace_on = user_debug.enable_pydev()
 except BaseException as ex:
-    pass
+   pass
 
 def index():
     files = os.listdir(siteFolder)
@@ -168,6 +166,10 @@ def getFullPath(path, url, useKiosk, userAgent):
     
     #fullPath = '"'+path+'" '+profile+userAgent+'--start-maximized --disable-translate --disable-new-tab-first-run --no-default-browser-check --no-first-run '+kiosk+'"'+black_background+'"'
     fullPath = [path, profile, userAgent, '--start-maximized','--disable-translate','--disable-new-tab-first-run','--no-default-browser-check','--no-first-run', kiosk, black_background]
+    for idx in range(0,len(fullPath))[::-1]:
+        if not fullPath[idx]:
+            del fullPath[idx]
+
     if debug:
         print "Full Path:"
         strpath = ""
