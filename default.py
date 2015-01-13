@@ -40,9 +40,12 @@ vimeoUrl = "http://www.vimeo.com/couchmode"
 
 trace_on = False
 try:
+    with open(os.path.join(addonPath,'user_debug.py'),'a'): # touch file
+        pass
     import user_debug
     trace_on = user_debug.enable_pydev()
-except BaseException as ex:
+except (ImportError, AttributeError) as ex:
+   xbmc.log("Debug Disable")
    pass
 
 def index():
