@@ -188,7 +188,7 @@ def showSite(url, stopPlayback, kiosk, userAgent):
     if stopPlayback == "yes":
         xbmc.Player().stop()
     if osWin:
-        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
+        creationflags = 0x00000008 # DETACHED_PROCESS https://msdn.microsoft.com/en-us/library/windows/desktop/ms684863(v=vs.85).aspx
         path = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
         path64 = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
         if useCustomPath and os.path.exists(customPath):
