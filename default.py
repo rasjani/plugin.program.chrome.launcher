@@ -15,9 +15,6 @@ pluginhandle = int(sys.argv[1])
 addonID = addon.getAddonInfo('id')
 addonPath = addon.getAddonInfo('path')
 translation = addon.getLocalizedString
-osWin = xbmc.getCondVisibility('system.platform.windows')
-osOsx = xbmc.getCondVisibility('system.platform.osx')
-osLinux = xbmc.getCondVisibility('system.platform.linux')
 useOwnProfile = addon.getSetting("useOwnProfile") == "true"
 useCustomPath = addon.getSetting("useCustomPath") == "true"
 customPath = xbmc.translatePath(addon.getSetting("customPath"))
@@ -36,6 +33,31 @@ if not os.path.isdir(siteFolder):
 youtubeUrl = "http://www.youtube.com/leanback"
 vimeoUrl = "http://www.vimeo.com/couchmode"
 
+osWin = xbmc.getCondVisibility('system.platform.windows')
+osOsx = xbmc.getCondVisibility('system.platform.osx')
+osLinux = xbmc.getCondVisibility('system.platform.linux')
+
+def find_exe(pathlist):
+    for path in pathlist:
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return None
+
+exePath = None
+
+if useCustomPath:
+    exePath=find_exe([customPath,])
+elif osWin:
+    exePath = find_exe(['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+                        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'])
+elif osOsx:
+    exePath = find_exe(["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",])
+elif osLinux:
+    exePath = find_exe(["/usr/bin/google-chrome",])
+
+if exePath is None:
+    xbmc.executebuiltin('XBMC.Notification(Info:,'+str(translation(30005))+'!,5000)')
+    addon.openSettings()
 
 def index():
     files = os.listdir(siteFolder)
@@ -103,58 +125,25 @@ def getFileName(title):
     return (''.join(c for c in unicode(title, 'utf-8') if c not in '/\\:?"*|<>')).strip()
 
 
-def getFullPath(path, url, useKiosk, userAgent):
-    profile = ""
+def getFullPath(exePath, url, useKiosk, userAgent):
+    args = [exePath,]
     if useOwnProfile:
-        profile = '--user-data-dir="'+profileFolder+'" '
-    kiosk = ""
-    if useKiosk=="yes":
-        kiosk = '--kiosk '
+        args.append('--user-data-dir=%s' % profileFolder)
+    if useKiosk == 'yes':
+        args.append('--kiosk')
     if userAgent:
-        userAgent = '--user-agent="'+userAgent+'" '
-    return '"'+path+'" '+profile+userAgent+'--start-maximized --disable-translate --disable-new-tab-first-run --no-default-browser-check --no-first-run '+kiosk+'"'+url+'"'
-
+        args.append('--user-agent="%s" % userAgent')
+    args+=['--start-maximized', '--disable-translate', '--disable-new-tab-first-run', '--no-default-browser-check', '--no-first-run', url]
+    return args
 
 def showSite(url, stopPlayback, kiosk, userAgent):
     if stopPlayback == "yes":
         xbmc.Player().stop()
-    if osWin:
-        path = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-        path64 = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
-        if useCustomPath and os.path.exists(customPath):
-            fullUrl = getFullPath(customPath, url, kiosk, userAgent)
-            subprocess.Popen(fullUrl, shell=False)
-        elif os.path.exists(path):
-            fullUrl = getFullPath(path, url, kiosk, userAgent)
-            subprocess.Popen(fullUrl, shell=False)
-        elif os.path.exists(path64):
-            fullUrl = getFullPath(path64, url, kiosk, userAgent)
-            subprocess.Popen(fullUrl, shell=False)
-        else:
-            xbmc.executebuiltin('XBMC.Notification(Info:,'+str(translation(30005))+'!,5000)')
-            addon.openSettings()
-    elif osOsx:
-        path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-        if useCustomPath and os.path.exists(customPath):
-            fullUrl = getFullPath(customPath, url, kiosk, userAgent)
-            subprocess.Popen(fullUrl, shell=True)
-        elif os.path.exists(path):
-            fullUrl = getFullPath(path, url, kiosk, userAgent)
-            subprocess.Popen(fullUrl, shell=True)
-        else:
-            xbmc.executebuiltin('XBMC.Notification(Info:,'+str(translation(30005))+'!,5000)')
-            addon.openSettings()
-    elif osLinux:
-        path = "/usr/bin/google-chrome"
-        if useCustomPath and os.path.exists(customPath):
-            fullUrl = getFullPath(customPath, url, kiosk, userAgent)
-            subprocess.Popen(fullUrl, shell=True)
-        elif os.path.exists(path):
-            fullUrl = getFullPath(path, url, kiosk, userAgent)
-            subprocess.Popen(fullUrl, shell=True)
-        else:
-            xbmc.executebuiltin('XBMC.Notification(Info:,'+str(translation(30005))+'!,5000)')
-            addon.openSettings()
+    params = getFullPath(exePath, url, kiosk, userAgent)
+    s = subprocess.Popen(params, shell=False)
+    s.communicate()
+    xbmcplugin.endOfDirectory(pluginhandle)
+    xbmc.executebuiltin("ReplaceWindow(Programs,%s)" % ("plugin://"+addonID+"/"))
 
 
 def removeSite(title):
@@ -237,6 +226,7 @@ def addSiteDir(name, url, mode, iconimage, stopPlayback, kiosk):
     ok = True
     liz = xbmcgui.ListItem(name, iconImage="DefaultFolder.png", thumbnailImage=iconimage)
     liz.setInfo(type="Video", infoLabels={"Title": name})
+
     liz.addContextMenuItems([(translation(30006), 'RunPlugin(plugin://'+addonID+'/?mode=editSite&url='+urllib.quote_plus(name)+')',), (translation(30002), 'RunPlugin(plugin://'+addonID+'/?mode=removeSite&url='+urllib.quote_plus(name)+')',)])
     ok = xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=u, listitem=liz, isFolder=True)
     return ok
