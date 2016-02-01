@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<strings>
+  <string id="30001">Lisää sivusto</string>
+  <string id="30002">Poista sivustoWebsite</string>
+  <string id="30003">Otsikko</string>
+  <string id="30004">URL</string>
+  <string id="30005">Chromea ei löytynyt</string>
+  <string id="30006">Muokkaa Sivuston asetuksia</string>
+  <string id="30007">Pikkukuva</string>
+  <string id="30009">Pysäytä mediatoisto KODI'ssa ?</string>
+  <string id="30010">Käytä omaa/muokattua Chrome skriptiä</string>
+  <string id="30011">Chrome skripti hakemisto</string>
+  <string id="30012">Käytä uutta profiilia ? (Profiilin luonti saattaa kestää jonkin aikaa)</string>
+  <string id="30016">Käytä kioski tilaa?</string>
+</strings>
