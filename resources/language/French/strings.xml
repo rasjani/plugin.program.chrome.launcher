@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<strings>
+  <string id="30001">Ajouter un site web</string>
+  <string id="30002">Supprimer un site web</string>
+  <string id="30003">Titre</string>
+  <string id="30004">URL</string>
+  <string id="30005">Chrome non trouvé</string>
+  <string id="30006">Edit Website Settings</string>
+  <string id="30007">Miniature</string>
+  <string id="30009">Arrêter la lecture XBMC ?</string>
+  <string id="30010">Use custom Chrome/script path</string>
+  <string id="30011">Chrome/script path</string>
+  <string id="30012">Utiliser votre propre profil utilisateur (peut prendre du temps la première fois)</string>
+  <string id="30016">Utiliser le mode kiosk ?</string>
+  <string id="30017">Debug</string>
+</strings>
