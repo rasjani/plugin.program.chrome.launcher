@@ -54,7 +54,7 @@ elif osWin:
 elif osOsx:
     exePath = find_exe(["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",])
 elif osLinux:
-    exePath = find_exe(["/usr/bin/google-chrome",])
+    exePath = find_exe(["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable"])
 
 if exePath is None:
     xbmc.executebuiltin('XBMC.Notification(Info:,'+str(translation(30005))+'!,5000)')
