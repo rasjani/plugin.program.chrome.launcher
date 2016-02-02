@@ -19,6 +19,7 @@ translation = addon.getLocalizedString
 osWin = xbmc.getCondVisibility('system.platform.windows')
 osOsx = xbmc.getCondVisibility('system.platform.osx')
 osLinux = xbmc.getCondVisibility('system.platform.linux')
+osAndroid = xbmc.getCondVisibility('system.platform.android')
 useOwnProfile = addon.getSetting("useOwnProfile") == "true"
 useCustomPath = addon.getSetting("useCustomPath") == "true"
 customPath = xbmc.translatePath(addon.getSetting("customPath"))
@@ -56,9 +57,14 @@ elif osOsx:
 elif osLinux:
     exePath = find_exe(["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable"])
 
-if exePath is None:
+if not osAndroid and exePath is None:
     xbmc.executebuiltin('XBMC.Notification(Info:,'+str(translation(30005))+'!,5000)')
     addon.openSettings()
+
+
+def openAndroidBrowser(url):
+    xbmc.executebuiltin("StartAndroidActivity(com.android.chrome,,,"+url+")")
+
 
 def updateOwnProfile():
     # On Linux, chrome kiosk leavs black bars on side/bottom of screen due to an incorrect working size.
@@ -257,14 +263,17 @@ def showSite(url, stopPlayback, kiosk, userAgent):
     if stopPlayback == "yes":
         xbmc.Player().stop()
 
-    params = getFullPath(exePath, url, kiosk, userAgent)
-    s = subprocess.Popen(params, shell=False, creationflags=creationFlags, close_fds = True)
-    s.communicate()
+    if osAndroid:
+        openAndroidBrowser(url)
+    else:
+        params = getFullPath(exePath, url, kiosk, userAgent)
+        s = subprocess.Popen(params, shell=False, creationflags=creationFlags, close_fds = True)
+        s.communicate()
 
-    bringChromeToFront(s.pid)
+        bringChromeToFront(s.pid)
 
-    xbmcplugin.endOfDirectory(pluginhandle)
-    xbmc.executebuiltin("ReplaceWindow(Programs,%s)" % ("plugin://"+addonID+"/"))
+        xbmcplugin.endOfDirectory(pluginhandle)
+        xbmc.executebuiltin("ReplaceWindow(Programs,%s)" % ("plugin://"+addonID+"/"))
 
 
 def removeSite(title):
