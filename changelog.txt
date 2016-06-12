@@ -27,9 +27,11 @@
 - Removed old settings references
 1.1.1
 - Fixed bug with "special://" custom paths
-1.1.90
+1.2.0
 - Spanish translation
 - French translation
 - Finnish translation
-- Bring lancher chrome to foreground
-- some code cleanups
+- Bring launched chrome to foreground
+- Code cleanups
+- Initial support for Android
+- translation file format from xml to po
