@@ -58,6 +58,10 @@ msgctxt "#30012"
 msgid "Use own user profile (Could take some time on first start)"
 msgstr ""
 
+msgctxt "#30013"
+msgid "Proxy"
+msgstr "Http Proxy, empty for system default"
+
 msgctxt "#30016"
 msgid "Use kiosk mode?"
 msgstr ""

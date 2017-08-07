@@ -40,6 +40,7 @@ youtubeUrl = "http://www.youtube.com/leanback"
 vimeoUrl = "http://www.vimeo.com/couchmode"
 fields = (('title', '', 30003, True),
           ('url', 'http://', 30004, True),
+          ('proxy', '', 30013, True),
           ('thumb', 'DefaultFolder.png', None, False),
           ('stopPlayback','no', 30009, True),
           ('kiosk', 'yes', 30016, True),
@@ -196,7 +197,7 @@ def getFileName(title):
     return (''.join(c for c in unicode(title, 'utf-8') if c not in '/\\:?"*|<>')).strip()
 
 
-def getFullPath(exePath, url, useKiosk, userAgent):
+def getFullPath(exePath, url, useKiosk, userAgent, proxy):
     args = [exePath,]
     if useOwnProfile:
         args.append('--user-data-dir=%s' % profileFolder)
@@ -205,7 +206,9 @@ def getFullPath(exePath, url, useKiosk, userAgent):
         if useOwnProfile and osLinux:
             updateOwnProfile()
     if userAgent:
-        args.append('--user-agent="%s" % userAgent')
+        args.append('--user-agent="%s"' % userAgent)
+    if proxy:
+        args.append('--proxy-server=%s' % proxy)
 
     # Flashing a white screen on switching to chrome looks bad, so I'll use a temp html file with black background
     # to redirect to our desired location.
@@ -282,7 +285,7 @@ def bringChromeToFront(pid):
         pass
 
 
-def showSite(url, stopPlayback, kiosk, userAgent):
+def showSite(url, stopPlayback, kiosk, userAgent, proxy):
     creationFlags = 0
     if osWin:
         creationFlags = 0x00000008 # DETACHED_PROCESS https://msdn.microsoft.com/en-us/library/windows/desktop/ms684863(v=vs.85).aspx
@@ -293,7 +296,7 @@ def showSite(url, stopPlayback, kiosk, userAgent):
     if osAndroid:
         openAndroidBrowser(url)
     else:
-        params = getFullPath(exePath, url, kiosk, userAgent)
+        params = getFullPath(exePath, url, kiosk, userAgent, proxy)
         s = subprocess.Popen(params, shell=False, creationflags=creationFlags, close_fds = True)
         s.communicate()
 
@@ -333,8 +336,8 @@ def parameters_string_to_dict(parameters):
     return paramDict
 
 
-def addDir(title, url, mode, thumb, stopPlayback="", kiosk=""):
-    u = sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+urllib.quote_plus(mode)+"&stopPlayback="+urllib.quote_plus(stopPlayback)+"&kiosk="+urllib.quote_plus(kiosk)
+def addDir(title, url, mode, thumb, stopPlayback="", kiosk="", proxy=""):
+    u = sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+urllib.quote_plus(mode)+"&stopPlayback="+urllib.quote_plus(stopPlayback)+"&kiosk="+urllib.quote_plus(kiosk)+"&proxy="+urllib.quote_plus(proxy)
     ok = True
     liz = xbmcgui.ListItem(title, iconImage="DefaultFolder.png", thumbnailImage=thumb)
     liz.setInfo(type="Video", infoLabels={"Title": title})
@@ -342,8 +345,8 @@ def addDir(title, url, mode, thumb, stopPlayback="", kiosk=""):
     return ok
 
 
-def addSiteDir(title, url, mode, thumb, stopPlayback, kiosk):
-    u = sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+urllib.quote_plus(mode)+"&stopPlayback="+urllib.quote_plus(stopPlayback)+"&kiosk="+urllib.quote_plus(kiosk)
+def addSiteDir(title, url, mode, thumb, stopPlayback, kiosk, proxy):
+    u = sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+urllib.quote_plus(mode)+"&stopPlayback="+urllib.quote_plus(stopPlayback)+"&kiosk="+urllib.quote_plus(kiosk)+"&proxy="+urllib.quote_plus(proxy)
     ok = True
     liz = xbmcgui.ListItem(title, iconImage="DefaultFolder.png", thumbnailImage=thumb)
     liz.setInfo(type="Video", infoLabels={"Title": title})
@@ -359,12 +362,13 @@ url = urllib.unquote_plus(params.get('url', ''))
 stopPlayback = urllib.unquote_plus(params.get('stopPlayback', 'no'))
 kiosk = urllib.unquote_plus(params.get('kiosk', 'yes'))
 userAgent = urllib.unquote_plus(params.get('userAgent', ''))
+proxy = urllib.unquote_plus(params.get('proxy', ''))
 
 
 if mode == 'addSite':
     addSite()
 elif mode == 'showSite':
-    showSite(url, stopPlayback, kiosk, userAgent)
+    showSite(url, stopPlayback, kiosk, userAgent, proxy)
 elif mode == 'removeSite':
     removeSite(url)
 elif mode == 'editSite':
