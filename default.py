@@ -38,6 +38,10 @@ if not os.path.isdir(siteFolder):
 
 youtubeUrl = "http://www.youtube.com/leanback"
 vimeoUrl = "http://www.vimeo.com/couchmode"
+# Data fields for each site. Each is a tuple of
+# (field_name, default_value, translation_id, ask_user)
+# If ask_user is False, the user will not be queried and
+# the translation_id can be None
 fields = (('title', '', 30003, True),
           ('url', 'http://', 30004, True),
           ('proxy', '', 30013, True),
@@ -51,6 +55,7 @@ translation_ids = {f[0]: f[2] for f in fields}
 prompted_fields = tuple(f[0] for f in fields if f[3])
 
 def get_default_fields():
+    """Return a dict mapping field_name -> default value"""
     return {f[0]:f[1] for f in fields}
 
 def find_exe(pathlist):
@@ -118,6 +123,12 @@ def updateOwnProfile():
         xbmc.log("Can't update chrome resolution")
 
 def read_link_file(filename):
+    """Read site data fields from a link file
+
+    Returns a dict mapping field_name -> value.
+    Default values are provided for missing fields
+
+    """
     data = get_default_fields()
     with open(filename, 'r') as fh:
         for line in fh.readlines():
@@ -127,6 +138,7 @@ def read_link_file(filename):
     return data
 
 def write_link_file(filename, data):
+    """Write a dict of site fields to a link file"""
     content = '\n'.join('{}={}'.format(k, v) for k, v in data.items())
     with open(filename, 'w') as fh:
         fh.write(content)
