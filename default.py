@@ -38,6 +38,25 @@ if not os.path.isdir(siteFolder):
 
 youtubeUrl = "http://www.youtube.com/leanback"
 vimeoUrl = "http://www.vimeo.com/couchmode"
+# Data fields for each site. Each is a tuple of
+# (field_name, default_value, translation_id, ask_user)
+# If ask_user is False, the user will not be queried and
+# the translation_id can be None
+fields = (('title', '', 30003, True),
+          ('url', 'http://', 30004, True),
+          ('proxy', '', 30013, True),
+          ('thumb', 'DefaultFolder.png', None, False),
+          ('stopPlayback','no', 30009, True),
+          ('kiosk', 'yes', 30016, True),
+)
+# Translation ids for data fields as in the .po files
+translation_ids = {f[0]: f[2] for f in fields}
+# The field names that the user should be prompted for
+prompted_fields = tuple(f[0] for f in fields if f[3])
+
+def get_default_fields():
+    """Return a dict mapping field_name -> default value"""
+    return {f[0]:f[1] for f in fields}
 
 def find_exe(pathlist):
     for path in pathlist:
@@ -67,7 +86,7 @@ def openAndroidBrowser(url):
 
 
 def updateOwnProfile():
-    # On Linux, chrome kiosk leavs black bars on side/bottom of screen due to an incorrect working size.
+    # On Linux, chrome kiosk leaves black bars on side/bottom of screen due to an incorrect working size.
     # We can fix the preferences directly
     # cat $prefs |perl -pe "s/\"work_area_bottom.*/\"work_area_bottom\": $(xrandr | grep \* | cut -d' ' -f4 | cut -d'x' -f2),/" > $prefs
     # cat $prefs |perl -pe "s/\"work_area_right.*/\"work_area_right\": $(xrandr | grep \* | cut -d' ' -f4 | cut -d'x' -f1),/" > $prefs
@@ -103,36 +122,71 @@ def updateOwnProfile():
     except:
         xbmc.log("Can't update chrome resolution")
 
+def read_link_file(filename):
+    """Read site data fields from a link file
+
+    Returns a dict mapping field_name -> value.
+    Default values are provided for missing fields
+
+    """
+    data = get_default_fields()
+    with open(filename, 'r') as fh:
+        for line in fh.readlines():
+            entry = line[:line.find("=")]
+            content = line[line.find("=")+1:].strip()
+            data[entry] = content
+    return data
+
+def write_link_file(filename, data):
+    """Write a dict of site fields to a link file"""
+    content = '\n'.join('{}={}'.format(k, v) for k, v in data.items())
+    with open(filename, 'w') as fh:
+        fh.write(content)
+
 def index():
     files = os.listdir(siteFolder)
     for file in files:
         if file.endswith(".link"):
-            fh = open(os.path.join(siteFolder, file), 'r')
-            title = ""
-            url = ""
-            thumb = ""
-            kiosk = "yes"
-            stopPlayback = "no"
-            for line in fh.readlines():
-                entry = line[:line.find("=")]
-                content = line[line.find("=")+1:]
-                if entry == "title":
-                    title = content.strip()
-                elif entry == "url":
-                    url = content.strip()
-                elif entry == "thumb":
-                    thumb = content.strip()
-                elif entry == "kiosk":
-                    kiosk = content.strip()
-                elif entry == "stopPlayback":
-                    stopPlayback = content.strip()
-            fh.close()
-            addSiteDir(title, url, 'showSite', thumb, stopPlayback, kiosk)
+            data = read_link_file(os.path.join(siteFolder, file))
+            addSiteDir(mode='showSite', **data)
+
     addDir("[ Vimeo Couchmode ]", vimeoUrl, 'showSite', os.path.join(addonPath, "vimeo.png"), "yes", "yes")
     addDir("[ Youtube Leanback ]", youtubeUrl, 'showSite', os.path.join(addonPath, "youtube.png"), "yes", "yes")
     addDir("[B]- "+translation(30001)+"[/B]", "", 'addSite', "")
     xbmcplugin.endOfDirectory(pluginhandle)
 
+def prompt_user(fields, defaults):
+    """Prompt user for data fields
+
+    Parameters
+    ==========
+
+    fields : seq of str
+        Names of the field the user should be prompted for. Prompted in order.
+    defaults : dict
+        Map field name -> default value. Note, every field must have a default
+
+    Returns
+    =======
+    data : dict or None
+        Maps field name -> value provided by user. None if the user aborted.
+
+    """
+    data = {}
+    for data_key in fields:
+        keyboard = xbmc.Keyboard(defaults[data_key],
+                                 translation(translation_ids[data_key]))
+        keyboard.doModal()
+        if keyboard.isConfirmed() and keyboard.getText():
+            data[data_key] = keyboard.getText()
+        else:
+            break
+    else:
+        # Python obscura: Do this if we did not break out of the loop
+        # In other words, the user did not abort, so return the entered data
+        return data
+    # We did not hit the for-else, so the user aborted.
+    return None
 
 def addSite(site="", title=""):
     if site:
@@ -142,26 +196,12 @@ def addSite(site="", title=""):
         fh.write(content)
         fh.close()
     else:
-        keyboard = xbmc.Keyboard('', translation(30003))
-        keyboard.doModal()
-        if keyboard.isConfirmed() and keyboard.getText():
-            title = keyboard.getText()
-            keyboard = xbmc.Keyboard('http://', translation(30004))
-            keyboard.doModal()
-            if keyboard.isConfirmed() and keyboard.getText():
-                url = keyboard.getText()
-                keyboard = xbmc.Keyboard('no', translation(30009))
-                keyboard.doModal()
-                if keyboard.isConfirmed() and keyboard.getText():
-                    stopPlayback = keyboard.getText()
-                    keyboard = xbmc.Keyboard('yes', translation(30016))
-                    keyboard.doModal()
-                    if keyboard.isConfirmed() and keyboard.getText():
-                        kiosk = keyboard.getText()
-                        content = "title="+title+"\nurl="+url+"\nthumb=DefaultFolder.png\nstopPlayback="+stopPlayback+"\nkiosk="+kiosk
-                        fh = open(os.path.join(siteFolder, getFileName(title)+".link"), 'w')
-                        fh.write(content)
-                        fh.close()
+        data = get_default_fields()
+        # Prompt user for required site data
+        data_from_user = prompt_user(prompted_fields, defaults=data)
+        if data_from_user:
+            data.update(data_from_user)
+            write_link_file(os.path.join(siteFolder, getFileName(data['title'])+".link"), data)
     xbmc.executebuiltin("Container.Refresh")
 
 
@@ -169,7 +209,7 @@ def getFileName(title):
     return (''.join(c for c in unicode(title, 'utf-8') if c not in '/\\:?"*|<>')).strip()
 
 
-def getFullPath(exePath, url, useKiosk, userAgent):
+def getFullPath(exePath, url, useKiosk, userAgent, proxy):
     args = [exePath,]
     if useOwnProfile:
         args.append('--user-data-dir=%s' % profileFolder)
@@ -178,7 +218,9 @@ def getFullPath(exePath, url, useKiosk, userAgent):
         if useOwnProfile and osLinux:
             updateOwnProfile()
     if userAgent:
-        args.append('--user-agent="%s" % userAgent')
+        args.append('--user-agent="%s"' % userAgent)
+    if proxy:
+        args.append('--proxy-server=%s' % proxy)
 
     # Flashing a white screen on switching to chrome looks bad, so I'll use a temp html file with black background
     # to redirect to our desired location.
@@ -255,7 +297,7 @@ def bringChromeToFront(pid):
         pass
 
 
-def showSite(url, stopPlayback, kiosk, userAgent):
+def showSite(url, stopPlayback, kiosk, userAgent, proxy):
     creationFlags = 0
     if osWin:
         creationFlags = 0x00000008 # DETACHED_PROCESS https://msdn.microsoft.com/en-us/library/windows/desktop/ms684863(v=vs.85).aspx
@@ -266,7 +308,7 @@ def showSite(url, stopPlayback, kiosk, userAgent):
     if osAndroid:
         openAndroidBrowser(url)
     else:
-        params = getFullPath(exePath, url, kiosk, userAgent)
+        params = getFullPath(exePath, url, kiosk, userAgent, proxy)
         s = subprocess.Popen(params, shell=False, creationflags=creationFlags, close_fds = True)
         s.communicate()
 
@@ -283,51 +325,15 @@ def removeSite(title):
 
 def editSite(title):
     filenameOld = getFileName(title)
-    file = os.path.join(siteFolder, filenameOld+".link")
-    fh = open(file, 'r')
-    title = ""
-    url = ""
-    kiosk = "yes"
-    thumb = "DefaultFolder.png"
-    stopPlayback = "no"
-    for line in fh.readlines():
-        entry = line[:line.find("=")]
-        content = line[line.find("=")+1:]
-        if entry == "title":
-            title = content.strip()
-        elif entry == "url":
-            url = content.strip()
-        elif entry == "kiosk":
-            kiosk = content.strip()
-        elif entry == "thumb":
-            thumb = content.strip()
-        elif entry == "stopPlayback":
-            stopPlayback = content.strip()
-    fh.close()
-
+    data = read_link_file(os.path.join(siteFolder, filenameOld+".link"))
     oldTitle = title
-    keyboard = xbmc.Keyboard(title, translation(30003))
-    keyboard.doModal()
-    if keyboard.isConfirmed() and keyboard.getText():
-        title = keyboard.getText()
-        keyboard = xbmc.Keyboard(url, translation(30004))
-        keyboard.doModal()
-        if keyboard.isConfirmed() and keyboard.getText():
-            url = keyboard.getText()
-            keyboard = xbmc.Keyboard(stopPlayback, translation(30009))
-            keyboard.doModal()
-            if keyboard.isConfirmed() and keyboard.getText():
-                stopPlayback = keyboard.getText()
-                keyboard = xbmc.Keyboard(kiosk, translation(30016))
-                keyboard.doModal()
-                if keyboard.isConfirmed() and keyboard.getText():
-                    kiosk = keyboard.getText()
-                    content = "title="+title+"\nurl="+url+"\nthumb="+thumb+"\nstopPlayback="+stopPlayback+"\nkiosk="+kiosk
-                    fh = open(os.path.join(siteFolder, getFileName(title)+".link"), 'w')
-                    fh.write(content)
-                    fh.close()
-                    if title != oldTitle:
-                        os.remove(os.path.join(siteFolder, filenameOld+".link"))
+    user_data = prompt_user(prompted_fields, data)
+    if user_data:
+        data.update(user_data)
+        title = data['title']
+        write_link_file(os.path.join(siteFolder, getFileName(title)+".link"), data)
+        if title != oldTitle:
+            os.remove(os.path.join(siteFolder, filenameOld+".link"))
     xbmc.executebuiltin("Container.Refresh")
 
 
@@ -342,22 +348,22 @@ def parameters_string_to_dict(parameters):
     return paramDict
 
 
-def addDir(name, url, mode, iconimage, stopPlayback="", kiosk=""):
-    u = sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+urllib.quote_plus(mode)+"&stopPlayback="+urllib.quote_plus(stopPlayback)+"&kiosk="+urllib.quote_plus(kiosk)
+def addDir(title, url, mode, thumb, stopPlayback="", kiosk="", proxy=""):
+    u = sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+urllib.quote_plus(mode)+"&stopPlayback="+urllib.quote_plus(stopPlayback)+"&kiosk="+urllib.quote_plus(kiosk)+"&proxy="+urllib.quote_plus(proxy)
     ok = True
-    liz = xbmcgui.ListItem(name, iconImage="DefaultFolder.png", thumbnailImage=iconimage)
-    liz.setInfo(type="Video", infoLabels={"Title": name})
+    liz = xbmcgui.ListItem(title, iconImage="DefaultFolder.png", thumbnailImage=thumb)
+    liz.setInfo(type="Video", infoLabels={"Title": title})
     ok = xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=u, listitem=liz, isFolder=True)
     return ok
 
 
-def addSiteDir(name, url, mode, iconimage, stopPlayback, kiosk):
-    u = sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+urllib.quote_plus(mode)+"&stopPlayback="+urllib.quote_plus(stopPlayback)+"&kiosk="+urllib.quote_plus(kiosk)
+def addSiteDir(title, url, mode, thumb, stopPlayback, kiosk, proxy):
+    u = sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+urllib.quote_plus(mode)+"&stopPlayback="+urllib.quote_plus(stopPlayback)+"&kiosk="+urllib.quote_plus(kiosk)+"&proxy="+urllib.quote_plus(proxy)
     ok = True
-    liz = xbmcgui.ListItem(name, iconImage="DefaultFolder.png", thumbnailImage=iconimage)
-    liz.setInfo(type="Video", infoLabels={"Title": name})
+    liz = xbmcgui.ListItem(title, iconImage="DefaultFolder.png", thumbnailImage=thumb)
+    liz.setInfo(type="Video", infoLabels={"Title": title})
 
-    liz.addContextMenuItems([(translation(30006), 'RunPlugin(plugin://'+addonID+'/?mode=editSite&url='+urllib.quote_plus(name)+')',), (translation(30002), 'RunPlugin(plugin://'+addonID+'/?mode=removeSite&url='+urllib.quote_plus(name)+')',)])
+    liz.addContextMenuItems([(translation(30006), 'RunPlugin(plugin://'+addonID+'/?mode=editSite&url='+urllib.quote_plus(title)+')',), (translation(30002), 'RunPlugin(plugin://'+addonID+'/?mode=removeSite&url='+urllib.quote_plus(title)+')',)])
     ok = xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=u, listitem=liz, isFolder=True)
     return ok
 
@@ -368,12 +374,13 @@ url = urllib.unquote_plus(params.get('url', ''))
 stopPlayback = urllib.unquote_plus(params.get('stopPlayback', 'no'))
 kiosk = urllib.unquote_plus(params.get('kiosk', 'yes'))
 userAgent = urllib.unquote_plus(params.get('userAgent', ''))
+proxy = urllib.unquote_plus(params.get('proxy', ''))
 
 
 if mode == 'addSite':
     addSite()
 elif mode == 'showSite':
-    showSite(url, stopPlayback, kiosk, userAgent)
+    showSite(url, stopPlayback, kiosk, userAgent, proxy)
 elif mode == 'removeSite':
     removeSite(url)
 elif mode == 'editSite':
